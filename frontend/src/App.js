@@ -10,14 +10,35 @@ function App() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
+    cleanDuplicates();
     fetchTasks();
   }, []);
+
+  const cleanDuplicates = () => {
+    const localTasks = JSON.parse(localStorage.getItem('tasks') || '[]');
+    const uniqueTasks = localTasks.reduce((acc, task) => {
+      if (!acc.find(t => t._id === task._id)) {
+        acc.push(task);
+      }
+      return acc;
+    }, []);
+    localStorage.setItem('tasks', JSON.stringify(uniqueTasks));
+  };
 
   const fetchTasks = async () => {
     try {
       setLoading(true);
       const response = await getTasks();
-      setTasks(response.data);
+      
+      // Remove duplicates
+      const uniqueTasks = response.data.reduce((acc, task) => {
+        if (!acc.find(t => t._id === task._id)) {
+          acc.push(task);
+        }
+        return acc;
+      }, []);
+      
+      setTasks(uniqueTasks);
     } catch (error) {
       console.error('Error fetching tasks:', error);
     } finally {
@@ -28,16 +49,19 @@ function App() {
   const handleAddTask = async (taskData, taskId = null) => {
     try {
       if (taskId) {
-        // Update existing task
         const response = await updateTask(taskId, taskData);
         setTasks(tasks.map(task => 
           task._id === taskId ? response.data : task
         ));
         setEditingTask(null);
       } else {
-        // Create new task
         const response = await createTask(taskData);
-        setTasks([response.data, ...tasks]);
+        // Prevent duplicate by checking if task already exists
+        setTasks(prevTasks => {
+          const exists = prevTasks.find(t => t._id === response.data._id);
+          if (exists) return prevTasks;
+          return [response.data, ...prevTasks];
+        });
       }
     } catch (error) {
       console.error('Error saving task:', error);

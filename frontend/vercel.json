@@ -9,6 +9,6 @@
   "buildCommand": "cd frontend && npm install && npm run build",
   "outputDirectory": "frontend/build",
   "routes": [
-    { "src": "/(.*)", "dest": "frontend/build/index.html" }
+    { "src": "/(.*)", "dest":"/index.html" }
   ]
 }

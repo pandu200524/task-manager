@@ -7,105 +7,108 @@ const api = API_URL ? axios.create({
   baseURL: API_URL,
 }) : null;
 
-// Mock data for when there's no backend
-const mockTasks = [];
+// Helper function to get tasks from localStorage
+const getLocalTasks = () => {
+  return JSON.parse(localStorage.getItem('tasks') || '[]');
+};
+
+// Helper function to save tasks to localStorage
+const saveLocalTasks = (tasks) => {
+  localStorage.setItem('tasks', JSON.stringify(tasks));
+};
 
 export const getTasks = async () => {
   if (!api) {
-    // Return mock data when no backend is available
-    return { data: mockTasks };
+    // Return localStorage data when no backend is available
+    return { data: getLocalTasks() };
   }
   try {
     return await api.get('/');
   } catch (error) {
     console.warn('Backend not available, using local storage');
-    // Fallback to localStorage
-    const localTasks = JSON.parse(localStorage.getItem('tasks') || '[]');
-    return { data: localTasks };
+    return { data: getLocalTasks() };
   }
 };
 
 export const getTask = async (id) => {
   if (!api) {
-    const task = mockTasks.find(t => t._id === id);
+    const tasks = getLocalTasks();
+    const task = tasks.find(t => t._id === id);
     return { data: task };
   }
   try {
     return await api.get(`/${id}`);
   } catch (error) {
-    const localTasks = JSON.parse(localStorage.getItem('tasks') || '[]');
-    const task = localTasks.find(t => t._id === id);
+    const tasks = getLocalTasks();
+    const task = tasks.find(t => t._id === id);
     return { data: task };
   }
 };
 
 export const createTask = async (task) => {
+  const newTask = { 
+    ...task, 
+    _id: Date.now().toString(), 
+    createdAt: new Date().toISOString() 
+  };
+  
   if (!api) {
-    const newTask = { ...task, _id: Date.now().toString(), createdAt: new Date() };
-    mockTasks.push(newTask);
-    // Save to localStorage
-    const localTasks = JSON.parse(localStorage.getItem('tasks') || '[]');
-    localTasks.push(newTask);
-    localStorage.setItem('tasks', JSON.stringify(localTasks));
+    const tasks = getLocalTasks();
+    tasks.unshift(newTask); // Add to beginning
+    saveLocalTasks(tasks);
     return { data: newTask };
   }
+  
   try {
     return await api.post('/', task);
   } catch (error) {
-    const newTask = { ...task, _id: Date.now().toString(), createdAt: new Date() };
-    const localTasks = JSON.parse(localStorage.getItem('tasks') || '[]');
-    localTasks.push(newTask);
-    localStorage.setItem('tasks', JSON.stringify(localTasks));
+    const tasks = getLocalTasks();
+    tasks.unshift(newTask);
+    saveLocalTasks(tasks);
     return { data: newTask };
   }
 };
 
-export const updateTask = async (id, task) => {
+export const updateTask = async (id, taskUpdate) => {
   if (!api) {
-    const index = mockTasks.findIndex(t => t._id === id);
+    const tasks = getLocalTasks();
+    const index = tasks.findIndex(t => t._id === id);
     if (index !== -1) {
-      mockTasks[index] = { ...mockTasks[index], ...task };
+      tasks[index] = { ...tasks[index], ...taskUpdate };
+      saveLocalTasks(tasks);
+      return { data: tasks[index] };
     }
-    // Update in localStorage
-    const localTasks = JSON.parse(localStorage.getItem('tasks') || '[]');
-    const localIndex = localTasks.findIndex(t => t._id === id);
-    if (localIndex !== -1) {
-      localTasks[localIndex] = { ...localTasks[localIndex], ...task };
-      localStorage.setItem('tasks', JSON.stringify(localTasks));
-    }
-    return { data: mockTasks[index] };
+    return { data: null };
   }
+  
   try {
-    return await api.put(`/${id}`, task);
+    return await api.put(`/${id}`, taskUpdate);
   } catch (error) {
-    const localTasks = JSON.parse(localStorage.getItem('tasks') || '[]');
-    const localIndex = localTasks.findIndex(t => t._id === id);
-    if (localIndex !== -1) {
-      localTasks[localIndex] = { ...localTasks[localIndex], ...task };
-      localStorage.setItem('tasks', JSON.stringify(localTasks));
+    const tasks = getLocalTasks();
+    const index = tasks.findIndex(t => t._id === id);
+    if (index !== -1) {
+      tasks[index] = { ...tasks[index], ...taskUpdate };
+      saveLocalTasks(tasks);
+      return { data: tasks[index] };
     }
-    return { data: localTasks[localIndex] };
+    return { data: null };
   }
 };
 
 export const deleteTask = async (id) => {
   if (!api) {
-    const index = mockTasks.findIndex(t => t._id === id);
-    if (index !== -1) {
-      mockTasks.splice(index, 1);
-    }
-    // Delete from localStorage
-    const localTasks = JSON.parse(localStorage.getItem('tasks') || '[]');
-    const filtered = localTasks.filter(t => t._id !== id);
-    localStorage.setItem('tasks', JSON.stringify(filtered));
+    const tasks = getLocalTasks();
+    const filtered = tasks.filter(t => t._id !== id);
+    saveLocalTasks(filtered);
     return { data: { success: true } };
   }
+  
   try {
     return await api.delete(`/${id}`);
   } catch (error) {
-    const localTasks = JSON.parse(localStorage.getItem('tasks') || '[]');
-    const filtered = localTasks.filter(t => t._id !== id);
-    localStorage.setItem('tasks', JSON.stringify(filtered));
+    const tasks = getLocalTasks();
+    const filtered = tasks.filter(t => t._id !== id);
+    saveLocalTasks(filtered);
     return { data: { success: true } };
   }
 };
